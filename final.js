@@ -1,4 +1,5 @@
 
+document.body.style.overflow = "hidden";
 
 import * as THREE from "https://esm.sh/three@0.160.0";
 
@@ -41,15 +42,18 @@ const questionText = document.getElementById("questionText");
 const answerInput = document.getElementById("answerInput");
 const nextButton = document.getElementById("nextButton");
 
-const questions = [
-  "What have you been stressed about?",
-  "What emotion are you hoping to let go of?",
-  "How do you want to feel right now?",
-  "What have you been hoping for in life?"
-];
+// const questions = [
+//   "What have you been stressed about?",
+//   "What emotion are you hoping to let go of?",
+//   "How do you want to feel right now?",
+//   "What have you been hoping for in life?"
+// ];
 
+let questionStateIndex = 0;
 let answers = [];
 let currentQuestionIndex = 0;
+let stateFade = 0;
+let stateGlow = 0;
 
 
 const introScreen = document.getElementById("introScreen");
@@ -151,19 +155,25 @@ function getStableGesture() {
 
 //BEGINNING QUESTIONS
 function showQuestion() {
+  const state = states[questionStateIndex];
   answerInput.value = "";
-  questionText.innerText = questions[currentQuestionIndex];
+  questionText.innerText = state.question;
 }
 
 nextButton.addEventListener("click", () => {
   const answer = answerInput.value.trim();
-
-  if (answer === "") return;
+  if (!answer) return;
 
   answers.push(answer);
-  currentQuestionIndex++;
 
-  if (currentQuestionIndex < questions.length) {
+  const state = states[questionStateIndex];
+
+  // apply transformation directly INTO the state
+  state.name = state.transform(answer);
+
+  questionStateIndex++;
+
+  if (questionStateIndex < states.length - 1) {
     showQuestion();
   } else {
     finishQuestions();
@@ -216,6 +226,13 @@ function startMeditation() {
 
   }, 1500); // matches fade duration
 }
+
+// function showQuestion() {
+//   const state = states[questionStateIndex];
+
+//   questionText.innerText = state.question;
+//   answerInput.value = "";
+// }
 
 
 
@@ -363,39 +380,58 @@ function updateProgressBar() {
 // STATES
 const states = [
   {
-    name: "guilt, shame, worry",
+    baseName: "guilt, shame, worry",
     uiColor: "red",
     brightness: 0.15,
     gesture: "fist",
-    prompt: "Make a fist"
+    prompt: "Make a tight fist",
+
+    question: "What have you been stressed about?",
+    transform: (answer) => `letting go of ${answer}`
   },
+
   {
-    name: "fear, desire, anger",
+    baseName: "fear, desire, anger",
     uiColor: "orange",
     brightness: 0.3,
     gesture: "four",
-    prompt: "Hold up an open hand"
+    prompt: "Hold up an open hand",
+
+    question: "What emotion are you hoping to release?",
+    transform: (answer) => `releasing ${answer}`
   },
+
   {
-    name: "neutrality, acceptance, willingness",
-    uiColor: "yellowgreen",
+    baseName: "neutrality, acceptance, willingness",
+    uiColor: "green",
     brightness: 0.5,
     gesture: "three",
-    prompt: "Hold up three fingers"
+    prompt: "Hold up three fingers",
+
+    question: "How do you want to feel right now?",
+    transform: (answer) => `embodying ${answer}`
   },
+
   {
-    name: "love, joy, peace",
+    baseName: "love, joy, peace",
     uiColor: "blue",
     brightness: 0.7,
     gesture: "two",
-    prompt: "Hold up two fingers"
+    prompt: "Hold up two fingers",
+
+    question: "What have you been hoping for in life?",
+    transform: (answer) => `channeling ${answer}`
   },
+
   {
-    name: "enlightenment",
+    baseName: "enlightenment",
     uiColor: "purple",
     brightness: 1.0,
     gesture: "one",
-    prompt: "Hold up one finger"
+    prompt: "Hold up one finger",
+
+    question: null,
+    transform: "Complete"
   }
 ];
 
@@ -404,7 +440,11 @@ function updateTextContrast() {
   instruction.style.color = "white";
 }
 
-
+function brightenColor(hex, factor) {
+  const color = new THREE.Color(hex);
+  color.lerp(new THREE.Color(0xffffff), factor);
+  return `#${color.getHexString()}`;
+}
 
 
 // HELPERS
@@ -488,6 +528,53 @@ function updateExperience() {
   updateEnvironment(currentStateIndex);
   updateTextContrast(currentStateIndex);
   
+stateLabel.style.opacity = 1 - stateFade;
+
+// disintegration feel
+stateLabel.style.filter = `blur(${stateFade * 6}px)`;
+stateLabel.style.letterSpacing = `${stateFade * 6}px`;
+stateLabel.style.transform = `translateY(${stateFade * 20}px)`;
+
+
+
+  // skip current state
+  const isLastThree = currentStateIndex >= states.length - 3;
+
+if (phase === "breathing") {
+
+  const elapsed = Date.now() - breathStartTime;
+const progress = elapsed / BREATH_DURATION;
+
+// 0 → 1 inhale, 1 → 0 exhale split
+const exhale = Math.max(0, (progress - 0.5) * 2);
+
+// only glow grows on exhale
+stateGlow = exhale;
+
+
+
+  if (isLastThree) {
+
+const state = states[currentStateIndex];
+
+stateLabel.style.color = state.uiColor;
+
+// REAL outer glow (animated)
+const glowSize = stateGlow * 35; // grows on exhale
+const glowOpacity = stateGlow;
+
+stateLabel.style.textShadow = `
+  0 0 ${glowSize}px rgba(255,255,255,${glowOpacity}),
+  0 0 ${glowSize * 1.5}px ${state.uiColor}
+`;
+
+  } else {
+
+    // always reset for first 2 states
+    stateLabel.style.color = state.uiColor;
+  }
+}
+
 
   if (phase === "gesture") {
     instruction.innerText = state.prompt;
@@ -512,9 +599,39 @@ function updateExperience() {
   // breathing instruction
   if (progress < 0.5) {
     instruction.innerText = "Breathe in...";
+     stateLabel.style.color = states[currentStateIndex].uiColor;
   } else {
     instruction.innerText = "Breathe out...";
   }
+
+  const isFirstTwoStates = currentStateIndex < 2;
+
+if (isFirstTwoStates && progress > 0.5) {
+  // start fade-out during breathe out
+  const fadeSpeed = 0.0008; // slower + smoother
+
+if (isFirstTwoStates && progress > 0.5) {
+  stateFade += fadeSpeed * (elapsed / 1000);
+  stateFade = Math.min(stateFade, 1);
+} else {
+  stateFade *= 0.92; // smoother recovery instead of instant reset
+}
+} else {
+  // reset for other states / inhale phase
+  stateFade *= 0.9;
+}
+
+const exhale = Math.max(0, (progress - 0.5) * 2); 
+const inhale = Math.max(0, (0.5 - progress) * 2);
+
+// smooth transition state
+const breathIntensity = exhale; // 0 → 1 only on exhale
+
+stateGlow = exhale;
+
+if (progress < 0.5 || phase === "gesture") {
+  stateLabel.style.color = states[currentStateIndex].uiColor;
+}
 
   // 🌬️ CAMERA BREATHING MOTION
   const breathCycle = Math.sin(progress * Math.PI); 
@@ -525,6 +642,7 @@ function updateExperience() {
   if (progress >= 1) {
     phase = "gesture";
     currentStateIndex++;
+    stateFade = 0;
   }
 }
 }
@@ -537,9 +655,9 @@ const requiredGestures = ["fist", "four", "three", "two", "one"];
 
 
 function setStateUI(state) {
-  stateLabel.innerText = state.name;
+  const display = state.name ?? state.baseName; 
+  stateLabel.innerText = display;
   stateLabel.style.color = state.uiColor;
-  stateLabel.style.textShadow = "0 0 10px rgba(0,0,0,0.5)";
   instruction.innerText = state.prompt;
 }
 
