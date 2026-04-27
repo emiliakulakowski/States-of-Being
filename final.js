@@ -59,6 +59,11 @@ let stateGlow = 0;
 const introScreen = document.getElementById("introScreen");
 const beginButton = document.getElementById("beginButton");
 
+const endScreen = document.getElementById("endScreen");
+const restartButton = document.getElementById("restartButton");
+
+let endTriggered = false;
+
 
 
 // MEDIAPIPE SETUP
@@ -488,9 +493,19 @@ function setCompleteGlow() {
   }
 
   if (fadeStarted) {
-    fadeProgress += 0.0025;
-    whiteFade.style.opacity = fadeProgress;
+  fadeProgress += 0.0025;
+  whiteFade.style.opacity = fadeProgress;
+
+  // ✅ when fully white → show end screen
+  if (fadeProgress >= 1 && !endTriggered) {
+    endTriggered = true;
+
+    setTimeout(() => {
+      endScreen.style.opacity = 1;
+      endScreen.style.pointerEvents = "auto";
+    }, 500);
   }
+}
 }
 
 
@@ -645,6 +660,8 @@ if (progress < 0.5 || phase === "gesture") {
     stateFade = 0;
   }
 }
+
+if (endTriggered) return;
 }
 
 
@@ -677,6 +694,10 @@ beginButton.addEventListener("click", () => {
 
     showQuestion();
   }, 1500);
+});
+
+restartButton.addEventListener("click", () => {
+  location.reload();
 });
 
 console.log("question screen display:", questionScreen.style.display);
