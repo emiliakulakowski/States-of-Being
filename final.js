@@ -282,8 +282,8 @@ nextButton.addEventListener("click", () => {
   // apply transformation directly INTO the state
   state.name = state.transform(answer);
 
-  // Save to Firebase after 3rd answer (when questionStateIndex is 2, after incrementing it becomes 3)
-  if (questionStateIndex === 2) {
+  // Save to Firebase after 4th answer (when questionStateIndex is 3, after incrementing it becomes 4)
+  if (questionStateIndex === 3) {
     saveAnswersToFirebase(answers);
   }
 
@@ -796,7 +796,7 @@ function setStateUI(state) {
 
 // ================= FIREBASE FUNCTIONS =================
 // Save the first 3 answers to Firestore
-async function saveAnswersToFirebase(firstThreeAnswers) {
+async function saveAnswersToFirebase(allAnswers) {
   try {
     const timestamp = Date.now();
     const userId = Math.random().toString(36).substr(2, 9); // anonymous user ID
@@ -805,9 +805,10 @@ async function saveAnswersToFirebase(firstThreeAnswers) {
       userId: userId,
       timestamp: timestamp,
       answers: {
-        question1: firstThreeAnswers[0] || "",
-        question2: firstThreeAnswers[1] || "",
-        question3: firstThreeAnswers[2] || ""
+        question1: allAnswers[0] || "",
+        question2: allAnswers[1] || "",
+        question3: allAnswers[2] || "",
+        question4: allAnswers[3] || ""
       }
     });
     
@@ -848,10 +849,11 @@ async function displayAnswers() {
   const questionLabels = [
     "What have you been stressed about?",
     "What emotion are you hoping to release?",
-    "How do you want to feel right now?"
+    "How do you want to feel right now?",
+    "What have you been hoping for in life?"
   ];
   
-  // Display one box per user with all 3 Q&A pairs
+  // Display one box per user with all 4 Q&A pairs
   allAnswers.forEach((responseData) => {
     const answers = responseData.answers;
     
@@ -859,8 +861,8 @@ async function displayAnswers() {
     const userBox = document.createElement("div");
     userBox.className = "userResponseBox";
     
-    // Add all 3 Q&A pairs to the box
-    for (let i = 0; i < 3; i++) {
+    // Add all 4 Q&A pairs to the box
+    for (let i = 0; i < 4; i++) {
       const answerText = answers[`question${i + 1}`];
       if (answerText) {
         const qaPair = document.createElement("div");
