@@ -276,14 +276,16 @@ nextButton.addEventListener("click", () => {
   if (!answer) return;
 
   answers.push(answer);
+  console.log("Answer added. Total answers:", answers.length, "Current state index:", questionStateIndex);
 
   const state = states[questionStateIndex];
 
   // apply transformation directly INTO the state
   state.name = state.transform(answer);
 
-  // Save to Firebase after 4th answer (when questionStateIndex is 3, after incrementing it becomes 4)
-  if (questionStateIndex === 3) {
+  // Save to Firebase after 4th answer is collected
+  if (answers.length === 4) {
+    console.log("Saving 4 answers to Firebase:", answers);
     saveAnswersToFirebase(answers);
   }
 
