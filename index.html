@@ -50,7 +50,17 @@
     </div>
 
     <button id="restartButton">Restart?</button>
+    <button id="seeAnswersButton">See Other Answers</button>
   </div>
+</div>
+
+  <!-- ================= ANSWERS VIEWER SCREEN ================= -->
+<div id="answersScreen">
+  <div id="answersHeader">
+    <h2>Community Responses</h2>
+    <button id="backButton">← Back</button>
+  </div>
+  <div id="answersContainer"></div>
 </div>
 
   <!-- ================= SCRIPTS ================= -->
@@ -59,7 +69,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 
-  <!-- Your app -->
+  <!-- Your app (Firebase is imported as ES6 module inside) -->
   <script type="module" src="final.js"></script>
 
 </body>

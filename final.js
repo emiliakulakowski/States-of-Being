@@ -7,6 +7,23 @@ import { EffectComposer } from "https://esm.sh/three@0.160.0/examples/jsm/postpr
 import { RenderPass } from "https://esm.sh/three@0.160.0/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "https://esm.sh/three@0.160.0/examples/jsm/postprocessing/UnrealBloomPass.js";
 
+// ================= FIREBASE SETUP =================
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCw5i64R9yKJqDvWbT9_9sEuOZ1pB2w5P0",
+  authDomain: "meditative-experience.firebaseapp.com",
+  projectId: "meditative-experience",
+  storageBucket: "meditative-experience.firebasestorage.app",
+  messagingSenderId: "225595318315",
+  appId: "1:225595318315:web:77d78df8c50fd8d09a8a6e"
+};
+
+// Initialize Firebase
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getFirestore(firebaseApp);
+
 let latestHand = null;
 let lastGesture = "none";
 let gestureCount = 0;
@@ -61,6 +78,11 @@ const beginButton = document.getElementById("beginButton");
 
 const endScreen = document.getElementById("endScreen");
 const restartButton = document.getElementById("restartButton");
+const seeAnswersButton = document.getElementById("seeAnswersButton");
+
+const answersScreen = document.getElementById("answersScreen");
+const answersContainer = document.getElementById("answersContainer");
+const backButton = document.getElementById("backButton");
 
 let endTriggered = false;
 
@@ -175,6 +197,11 @@ nextButton.addEventListener("click", () => {
 
   // apply transformation directly INTO the state
   state.name = state.transform(answer);
+
+  // Save to Firebase after 3rd answer (when questionStateIndex is 2, after incrementing it becomes 3)
+  if (questionStateIndex === 2) {
+    saveAnswersToFirebase(answers);
+  }
 
   questionStateIndex++;
 
@@ -678,6 +705,114 @@ function setStateUI(state) {
   instruction.innerText = state.prompt;
 }
 
+// ================= FIREBASE FUNCTIONS =================
+// Save the first 3 answers to Firestore
+async function saveAnswersToFirebase(firstThreeAnswers) {
+  try {
+    const timestamp = Date.now();
+    const userId = Math.random().toString(36).substr(2, 9); // anonymous user ID
+    
+    await addDoc(collection(db, "responses"), {
+      userId: userId,
+      timestamp: timestamp,
+      answers: {
+        question1: firstThreeAnswers[0] || "",
+        question2: firstThreeAnswers[1] || "",
+        question3: firstThreeAnswers[2] || ""
+      }
+    });
+    
+    console.log("Answers saved successfully");
+  } catch (error) {
+    console.error("Error saving answers:", error);
+  }
+}
+
+// Fetch all answers from Firestore
+async function fetchAllAnswers() {
+  try {
+    const querySnapshot = await getDocs(collection(db, "responses"));
+    const answersArray = [];
+    
+    querySnapshot.forEach((doc) => {
+      answersArray.push(doc.data());
+    });
+    
+    return answersArray;
+  } catch (error) {
+    console.error("Error fetching answers:", error);
+    return [];
+  }
+}
+
+// Display answers in the viewer screen
+async function displayAnswers() {
+  answersContainer.innerHTML = "";
+  
+  const allAnswers = await fetchAllAnswers();
+  
+  if (allAnswers.length === 0) {
+    answersContainer.innerHTML = "<p style='color: black; grid-column: 1/-1; text-align: center; padding: 40px;'>No responses yet. Be the first to share!</p>";
+    return;
+  }
+  
+  const questionLabels = [
+    "What have you been stressed about?",
+    "What emotion are you hoping to release?",
+    "How do you want to feel right now?"
+  ];
+  
+  // Display one box per user with all 3 Q&A pairs
+  allAnswers.forEach((responseData) => {
+    const answers = responseData.answers;
+    
+    // Create a box for each user response
+    const userBox = document.createElement("div");
+    userBox.className = "userResponseBox";
+    
+    // Add all 3 Q&A pairs to the box
+    for (let i = 0; i < 3; i++) {
+      const answerText = answers[`question${i + 1}`];
+      if (answerText) {
+        const qaPair = document.createElement("div");
+        qaPair.className = "qaPair";
+        
+        const questionLabel = document.createElement("div");
+        questionLabel.className = "qaQuestion";
+        questionLabel.textContent = questionLabels[i];
+        
+        const answerContent = document.createElement("div");
+        answerContent.className = "qaAnswer";
+        answerContent.textContent = answerText;
+        
+        qaPair.appendChild(questionLabel);
+        qaPair.appendChild(answerContent);
+        userBox.appendChild(qaPair);
+      }
+    }
+    
+    answersContainer.appendChild(userBox);
+  });
+}
+
+// Show answers viewer screen
+function showAnswersViewer() {
+  endScreen.style.opacity = 0;
+  endScreen.style.pointerEvents = "none";
+  
+  answersScreen.classList.add("visible");
+  displayAnswers();
+}
+
+// Hide answers viewer and go back to end screen
+function hideAnswersViewer() {
+  answersScreen.classList.remove("visible");
+  
+  endScreen.style.opacity = 1;
+  endScreen.style.pointerEvents = "auto";
+}
+
+
 beginButton.addEventListener("click", () => {
   introScreen.classList.add("fadeOut");
 
@@ -698,6 +833,14 @@ beginButton.addEventListener("click", () => {
 
 restartButton.addEventListener("click", () => {
   location.reload();
+});
+
+seeAnswersButton.addEventListener("click", () => {
+  showAnswersViewer();
+});
+
+backButton.addEventListener("click", () => {
+  hideAnswersViewer();
 });
 
 console.log("question screen display:", questionScreen.style.display);
