@@ -24,6 +24,90 @@ const firebaseConfig = {
 const firebaseApp = initializeApp(firebaseConfig);
 const db = getFirestore(firebaseApp);
 
+// ================= AUDIO SETUP =================
+let currentAudio = null;
+let fadeOutTimeout = null;
+
+const audioFiles = {
+  intro: "396 hz.mp3",
+  questions: "417 hz.mp3",
+  meditation: "528 hz.mp3",
+  ending: "852 hz.mp3",
+  posts: "963 hz.mp3"
+};
+
+function playAudio(audioFileName) {
+  // Stop current audio
+  stopAudio();
+  
+  // Create new audio element
+  currentAudio = new Audio(audioFileName);
+  currentAudio.loop = false; // We'll handle looping manually with fade
+  currentAudio.volume = 0.3; // 30% volume for background
+  
+  // Handle seamless loop with fade
+  currentAudio.addEventListener("timeupdate", handleAudioLoop);
+  
+  currentAudio.play().catch(err => {
+    console.log("Audio autoplay prevented. User interaction required:", err);
+  });
+}
+
+function handleAudioLoop() {
+  if (!currentAudio) return;
+  
+  const fadeStartTime = currentAudio.duration - 1.5; // Start fade 1.5 seconds before end
+  
+  if (currentAudio.currentTime >= fadeStartTime && currentAudio.currentTime < currentAudio.duration) {
+    // Calculate fade progress (0 to 1)
+    const timeUntilEnd = currentAudio.duration - currentAudio.currentTime;
+    const fadeProgress = 1 - (timeUntilEnd / 1.5); // 1.5 second fade
+    
+    // Fade out the volume
+    currentAudio.volume = 0.3 * (1 - fadeProgress);
+  }
+  
+  // When audio ends, restart with fade in
+  if (currentAudio.currentTime >= currentAudio.duration - 0.1) {
+    currentAudio.currentTime = 0;
+    currentAudio.volume = 0; // Start at 0
+    currentAudio.play();
+    
+    // Fade in over 1.5 seconds
+    const startTime = Date.now();
+    const fadeDuration = 1500; // 1.5 seconds
+    
+    const fadeInInterval = setInterval(() => {
+      if (!currentAudio) {
+        clearInterval(fadeInInterval);
+        return;
+      }
+      
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / fadeDuration, 1);
+      currentAudio.volume = 0.3 * progress;
+      
+      if (progress >= 1) {
+        clearInterval(fadeInInterval);
+      }
+    }, 50);
+  }
+}
+
+function stopAudio() {
+  if (currentAudio) {
+    currentAudio.removeEventListener("timeupdate", handleAudioLoop);
+    currentAudio.pause();
+    currentAudio.currentTime = 0;
+    currentAudio = null;
+  }
+  
+  if (fadeOutTimeout) {
+    clearTimeout(fadeOutTimeout);
+    fadeOutTimeout = null;
+  }
+}
+
 let latestHand = null;
 let lastGesture = "none";
 let gestureCount = 0;
@@ -238,7 +322,9 @@ setTimeout(() => {
 }
 
 function startMeditation() {
-
+  // Switch to meditation audio
+  playAudio(audioFiles.meditation);
+  
   // fade white in
   whiteFade.style.opacity = 1;
 
@@ -456,7 +542,7 @@ const states = [
   },
 
   {
-    baseName: "enlightenment",
+    baseName: "be present in this moment",
     uiColor: "purple",
     brightness: 1.0,
     gesture: "one",
@@ -528,6 +614,9 @@ function setCompleteGlow() {
     endTriggered = true;
 
     setTimeout(() => {
+      // Switch to ending audio
+      playAudio(audioFiles.ending);
+      
       endScreen.style.opacity = 1;
       endScreen.style.pointerEvents = "auto";
     }, 500);
@@ -797,6 +886,9 @@ async function displayAnswers() {
 
 // Show answers viewer screen
 function showAnswersViewer() {
+  // Switch to posts audio
+  playAudio(audioFiles.posts);
+  
   endScreen.style.opacity = 0;
   endScreen.style.pointerEvents = "none";
   
@@ -806,6 +898,9 @@ function showAnswersViewer() {
 
 // Hide answers viewer and go back to end screen
 function hideAnswersViewer() {
+  // Switch back to ending audio
+  playAudio(audioFiles.ending);
+  
   answersScreen.classList.remove("visible");
   
   endScreen.style.opacity = 1;
@@ -814,6 +909,9 @@ function hideAnswersViewer() {
 
 
 beginButton.addEventListener("click", () => {
+  // Switch to questions audio
+  playAudio(audioFiles.questions);
+  
   introScreen.classList.add("fadeOut");
 
   setTimeout(() => {
@@ -842,6 +940,10 @@ seeAnswersButton.addEventListener("click", () => {
 backButton.addEventListener("click", () => {
   hideAnswersViewer();
 });
+
+// ================= START INTRO AUDIO =================
+// Play intro audio (396 Hz) when page loads
+playAudio(audioFiles.intro);
 
 console.log("question screen display:", questionScreen.style.display);
 console.log("questionScreen:", questionScreen);
